@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use clap::Parser;
 
 #[derive(Parser, Debug)]
@@ -7,11 +8,13 @@ struct Args {
     input_file: String,
 
     #[clap(short = 'o', long = "output", value_parser)]
-    output_file: u8,
+    output_file: String,
 }
 
-
-fn main() {
+fn main() -> Result<()> {
     let args = Args::parse();
-    println!("{:?}", args);
+    let input_file_content = std::fs::read_to_string(&args.input_file)
+        .with_context(|| format!("could not read file `{}`", &args.input_file))?;
+    println!("{}", input_file_content);
+    Ok(())
 }
