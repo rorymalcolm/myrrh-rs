@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use regex::Regex;
 use serde_json::Value;
-use std::{collections::HashMap};
+use std::collections::HashMap;
 use tracing::{event, span, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -48,7 +48,6 @@ impl TypeScriptTypeNode {
         }
         type_string
     }
-
 }
 
 fn main() -> Result<()> {
@@ -88,12 +87,7 @@ fn walk_value_tree(v: &Value, type_tree: &mut HashMap<String, TypeScriptTypeNode
                 if is_value_type(v) {
                     type_tree.insert(
                         k.to_string(),
-                        TypeScriptTypeNode {
-                            type_name: classify_value_type(v),
-                            optional: false,
-                            nullable: false,
-                            sub_items: None,
-                        },
+                        TypeScriptTypeNode::new(classify_value_type(v), false, false),
                     );
                     event!(
                         Level::INFO,
@@ -106,12 +100,8 @@ fn walk_value_tree(v: &Value, type_tree: &mut HashMap<String, TypeScriptTypeNode
                     walk_value_tree(v, &mut sub_items);
                     type_tree.insert(
                         k.to_string(),
-                        TypeScriptTypeNode {
-                            type_name: "object".to_string(),
-                            optional: false,
-                            nullable: false,
-                            sub_items: Some(sub_items),
-                        },
+                        TypeScriptTypeNode::new("object".to_string(), false, false)
+                            .with_sub_items(sub_items),
                     );
                 }
             }
@@ -122,12 +112,7 @@ fn walk_value_tree(v: &Value, type_tree: &mut HashMap<String, TypeScriptTypeNode
                 if is_value_type(v) {
                     sub_items.insert(
                         "item".to_string(),
-                        TypeScriptTypeNode {
-                            type_name: classify_value_type(v),
-                            optional: false,
-                            nullable: false,
-                            sub_items: None,
-                        },
+                        TypeScriptTypeNode::new(classify_value_type(v), false, false),
                     );
                     event!(Level::INFO, value = classify_value_type(v), "found value");
                 } else {
@@ -182,7 +167,12 @@ fn print_type_tree_helper(type_tree: &HashMap<String, TypeScriptTypeNode>, inden
     for (k, v) in type_tree {
         if v.type_name != "object" && v.type_name != "array" {
             if identifier_needs_wrapped(k) {
-                println!("{}\"{}\": {};", indent_str, k.to_string(), v.to_type_string());
+                println!(
+                    "{}\"{}\": {};",
+                    indent_str,
+                    k.to_string(),
+                    v.to_type_string()
+                );
             } else {
                 println!("{}{}: {};", indent_str, k.to_string(), v.to_type_string());
             }
