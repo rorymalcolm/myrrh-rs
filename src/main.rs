@@ -6,7 +6,6 @@ use tracing_subscriber::FmtSubscriber;
 
 #[derive(Parser, Debug)]
 struct Args {
-    /// Name of the person to greet
     #[clap(short = 'i', long = "input", value_parser)]
     input_file: String,
 
