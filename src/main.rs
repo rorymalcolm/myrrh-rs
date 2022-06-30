@@ -1,7 +1,8 @@
 use anyhow::{Context, Result};
 use clap::Parser;
+use regex::Regex;
 use serde_json::Value;
-use std::{collections::HashMap, iter::Map};
+use std::{collections::HashMap};
 use tracing::{event, span, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -20,6 +21,34 @@ struct TypeScriptTypeNode {
     optional: bool,
     nullable: bool,
     sub_items: Option<HashMap<String, TypeScriptTypeNode>>,
+}
+
+impl TypeScriptTypeNode {
+    fn new(type_name: String, optional: bool, nullable: bool) -> Self {
+        TypeScriptTypeNode {
+            type_name,
+            optional,
+            nullable,
+            sub_items: None,
+        }
+    }
+
+    fn with_sub_items(mut self, sub_items: HashMap<String, TypeScriptTypeNode>) -> Self {
+        self.sub_items = Some(sub_items);
+        self
+    }
+
+    fn to_type_string(&self) -> String {
+        let mut type_string = self.type_name.clone();
+        if self.optional {
+            type_string.push_str("?");
+        }
+        if self.nullable {
+            type_string.push_str(" | null");
+        }
+        type_string
+    }
+
 }
 
 fn main() -> Result<()> {
@@ -47,7 +76,7 @@ fn main() -> Result<()> {
 
     walk_value_tree(&v, &mut type_tree);
 
-    print_type_tree(&type_tree, 0);
+    print_type_tree(&type_tree);
     Ok(())
 }
 
@@ -139,20 +168,44 @@ fn is_value_type(v: &Value) -> bool {
     }
 }
 
-fn print_type_tree(type_tree: &HashMap<String, TypeScriptTypeNode>, indent: usize) {
+fn print_type_tree(type_tree: &HashMap<String, TypeScriptTypeNode>) {
+    println!("type DefaultType = {{");
+    print_type_tree_helper(type_tree, 1);
+    println!("}}");
+}
+
+fn print_type_tree_helper(type_tree: &HashMap<String, TypeScriptTypeNode>, indent: usize) {
     let mut indent_str = String::new();
     for _ in 0..indent {
         indent_str.push_str("  ");
     }
     for (k, v) in type_tree {
-        println!("{}{}:{}", indent_str, k.to_string(), v.type_name);
+        if v.type_name != "object" && v.type_name != "array" {
+            if identifier_needs_wrapped(k) {
+                println!("{}\"{}\": {};", indent_str, k.to_string(), v.to_type_string());
+            } else {
+                println!("{}{}: {};", indent_str, k.to_string(), v.to_type_string());
+            }
+        }
         match &v.sub_items {
             Some(sub_items) => {
-                println!("{{");
-                print_type_tree(&sub_items, indent + 1);
-                println!("}}");
+                if identifier_needs_wrapped(k) {
+                    println!("{}\"{}\": {{", indent_str, k.to_string());
+                } else {
+                    println!("{}{}: {{", indent_str, k.to_string());
+                }
+                print_type_tree_helper(&sub_items, indent + 1);
+                println!("{}}};", indent_str);
             }
             None => (),
         }
+    }
+}
+
+fn identifier_needs_wrapped(type_name: &str) -> bool {
+    let re = Regex::new("/^[$A-Z_][0-9A-Z_$]*$/i").unwrap();
+    match re.is_match(type_name) {
+        true => false,
+        false => true,
     }
 }
