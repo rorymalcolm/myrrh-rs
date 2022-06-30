@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use serde_json::Value;
+use std::{collections::HashMap, iter::Map};
 use tracing::{event, span, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -11,6 +12,14 @@ struct Args {
 
     #[clap(short = 'o', long = "output", value_parser)]
     output_file: String,
+}
+
+#[derive(Debug)]
+struct TypeScriptTypeNode {
+    type_name: String,
+    optional: bool,
+    nullable: bool,
+    sub_items: Option<HashMap<String, TypeScriptTypeNode>>,
 }
 
 fn main() -> Result<()> {
@@ -31,29 +40,79 @@ fn main() -> Result<()> {
         "input file content"
     );
 
+    let mut type_tree = HashMap::<String, TypeScriptTypeNode>::new();
+
     let v: Value = serde_json::from_str(input_file_content.as_str())
         .with_context(|| format!("could not parse json"))?;
 
-    walk_value_tree(&v);
+    walk_value_tree(&v, &mut type_tree);
 
+    print_type_tree(&type_tree, 0);
     Ok(())
 }
 
 #[tracing::instrument]
-fn walk_value_tree(v: &Value) {
+fn walk_value_tree(v: &Value, type_tree: &mut HashMap<String, TypeScriptTypeNode>) {
     match v {
         Value::Object(o) => {
             for (k, v) in o {
-                event!(Level::INFO, "{}: ", k);
-                walk_value_tree(v);
+                if is_value_type(v) {
+                    type_tree.insert(
+                        k.to_string(),
+                        TypeScriptTypeNode {
+                            type_name: classify_value_type(v),
+                            optional: false,
+                            nullable: false,
+                            sub_items: None,
+                        },
+                    );
+                    event!(
+                        Level::INFO,
+                        key = k,
+                        value = classify_value_type(v),
+                        "found value"
+                    );
+                } else {
+                    let mut sub_items = HashMap::<String, TypeScriptTypeNode>::new();
+                    walk_value_tree(v, &mut sub_items);
+                    type_tree.insert(
+                        k.to_string(),
+                        TypeScriptTypeNode {
+                            type_name: "object".to_string(),
+                            optional: false,
+                            nullable: false,
+                            sub_items: Some(sub_items),
+                        },
+                    );
+                }
             }
         }
         Value::Array(a) => {
+            let mut sub_items = HashMap::<String, TypeScriptTypeNode>::new();
             for v in a {
-                walk_value_tree(v);
+                if is_value_type(v) {
+                    sub_items.insert(
+                        "item".to_string(),
+                        TypeScriptTypeNode {
+                            type_name: classify_value_type(v),
+                            optional: false,
+                            nullable: false,
+                            sub_items: None,
+                        },
+                    );
+                    event!(Level::INFO, value = classify_value_type(v), "found value");
+                } else {
+                    walk_value_tree(v, &mut sub_items);
+                }
             }
         }
         _ => {
+            TypeScriptTypeNode {
+                type_name: classify_value_type(v),
+                optional: false,
+                nullable: false,
+                sub_items: None,
+            };
             event!(Level::INFO, "{}", classify_value_type(v));
         }
     }
@@ -67,5 +126,33 @@ fn classify_value_type(v: &Value) -> String {
         Value::Number(_) => "number".to_string(),
         Value::Null => "never".to_string(),
         _ => "unknown".to_string(),
+    }
+}
+
+fn is_value_type(v: &Value) -> bool {
+    match v {
+        Value::Bool(_) => true,
+        Value::String(_) => true,
+        Value::Number(_) => true,
+        Value::Null => true,
+        _ => false,
+    }
+}
+
+fn print_type_tree(type_tree: &HashMap<String, TypeScriptTypeNode>, indent: usize) {
+    let mut indent_str = String::new();
+    for _ in 0..indent {
+        indent_str.push_str("  ");
+    }
+    for (k, v) in type_tree {
+        println!("{}{}:{}", indent_str, k.to_string(), v.type_name);
+        match &v.sub_items {
+            Some(sub_items) => {
+                println!("{{");
+                print_type_tree(&sub_items, indent + 1);
+                println!("}}");
+            }
+            None => (),
+        }
     }
 }
