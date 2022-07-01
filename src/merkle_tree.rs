@@ -1,4 +1,7 @@
-use std::{hash::Hasher, collections::{hash_map::DefaultHasher, HashMap}};
+use std::{
+    collections::{hash_map::DefaultHasher, HashMap},
+    hash::Hasher,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MerkleTree<T> {
@@ -10,7 +13,7 @@ pub struct MerkleTree<T> {
 pub struct Leaf<T> {
     value: T,
     hash: u64,
-    leaves: Vec<Leaf<T>>
+    leaves: Vec<Leaf<T>>,
 }
 
 impl<T: std::hash::Hash + Clone> MerkleTree<T> {
@@ -19,7 +22,8 @@ impl<T: std::hash::Hash + Clone> MerkleTree<T> {
             lookup_up_table: HashMap::new(),
             root: Self::new_leaf(root.clone()),
         };
-        val.lookup_up_table.insert(Self::compute_root_hash(root.clone()), 1);
+        val.lookup_up_table
+            .insert(Self::compute_root_hash(root.clone()), 1);
         val
     }
 
@@ -52,7 +56,7 @@ impl<T: std::hash::Hash + Clone> MerkleTree<T> {
         hasher.finish()
     }
 
-    fn compute_tree_hash(leaf: Leaf<T>) -> u64{
+    fn compute_tree_hash(leaf: Leaf<T>) -> u64 {
         let mut hasher = DefaultHasher::new();
         leaf.value.hash(&mut hasher);
         for leaf in leaf.leaves {
