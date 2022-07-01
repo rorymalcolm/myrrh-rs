@@ -35,6 +35,19 @@ impl<T: std::hash::Hash + Clone> MerkleTree<T> {
         }
     }
 
+    pub fn get_leaves(&self) -> Vec<Leaf<T>> {
+        let mut leaves = vec![];
+        let mut stack = vec![self.root.clone()];
+        while !stack.is_empty() {
+            let leaf = stack.pop().unwrap();
+            leaves.push(leaf.clone());
+            for l in leaf.leaves.clone() {
+                stack.push(l);
+            }
+        }
+        leaves
+    }
+
     pub fn add_leaf(&mut self, leaf: T) {
         self.root.leaves.push(Self::new_leaf(leaf));
         self.root.hash = Self::compute_tree_hash(self.root.clone());
