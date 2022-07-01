@@ -1,6 +1,7 @@
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     hash::Hasher,
+    sync::Arc,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -13,7 +14,7 @@ pub struct MerkleTree<T> {
 pub struct Leaf<T> {
     value: T,
     hash: u64,
-    leaves: Vec<Leaf<T>>,
+    leaves: Vec<Arc<Leaf<T>>>,
 }
 
 impl<T: std::hash::Hash + Clone> MerkleTree<T> {
@@ -35,22 +36,9 @@ impl<T: std::hash::Hash + Clone> MerkleTree<T> {
         }
     }
 
-    pub fn get_leaves(&self) -> Vec<Leaf<T>> {
-        let mut leaves = vec![];
-        let mut stack = vec![self.root.clone()];
-        while !stack.is_empty() {
-            let leaf = stack.pop().unwrap();
-            leaves.push(leaf.clone());
-            for l in leaf.leaves.clone() {
-                stack.push(l);
-            }
-        }
-        leaves
-    }
-
     pub fn add_leaf(&mut self, leaf: T) {
-        self.root.leaves.push(Self::new_leaf(leaf));
-        self.root.hash = Self::compute_tree_hash(self.root.clone());
+        self.root.leaves.push(Arc::new(Self::new_leaf(leaf)));
+        self.root.hash = Self::compute_tree_hash(&self.root);
         if self.lookup_up_table.contains_key(&self.root.hash) {
             self.lookup_up_table
                 .insert(self.root.hash, &self.lookup_up_table[&self.root.hash] + 1);
@@ -63,25 +51,29 @@ impl<T: std::hash::Hash + Clone> MerkleTree<T> {
         self.root.clone()
     }
 
+    pub fn get_leaves(&self) -> Vec<Arc<Leaf<T>>> {
+        self.root.leaves.clone()
+    }
+
     pub fn compute_root_hash(param: T) -> u64 {
         let mut hasher = DefaultHasher::new();
         param.hash(&mut hasher);
         hasher.finish()
     }
 
-    fn compute_tree_hash(leaf: Leaf<T>) -> u64 {
+    fn compute_tree_hash(leaf: &Leaf<T>) -> u64 {
         let mut hasher = DefaultHasher::new();
         leaf.value.hash(&mut hasher);
-        for leaf in leaf.leaves {
-            Self::compute_hash_tree_helper(leaf, &mut hasher);
+        for leaf in leaf.leaves.clone() {
+            Self::compute_hash_tree_helper(&leaf.clone(), &mut hasher);
         }
         hasher.finish()
     }
 
-    fn compute_hash_tree_helper(leaf: Leaf<T>, hasher: &mut DefaultHasher) {
+    fn compute_hash_tree_helper(leaf: &Leaf<T>, hasher: &mut DefaultHasher) {
         leaf.value.hash(hasher);
-        for leaf in leaf.leaves {
-            Self::compute_hash_tree_helper(leaf, hasher);
+        for leaf in leaf.leaves.clone() {
+            Self::compute_hash_tree_helper(&leaf.clone(), hasher);
         }
     }
 }
