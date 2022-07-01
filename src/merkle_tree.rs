@@ -52,7 +52,7 @@ impl<T: std::hash::Hash + Clone> MerkleTree<T> {
         hasher.finish()
     }
 
-    pub fn compute_tree_hash(leaf: Leaf<T>) -> u64{
+    fn compute_tree_hash(leaf: Leaf<T>) -> u64{
         let mut hasher = DefaultHasher::new();
         leaf.value.hash(&mut hasher);
         for leaf in leaf.leaves {
@@ -61,7 +61,7 @@ impl<T: std::hash::Hash + Clone> MerkleTree<T> {
         hasher.finish()
     }
 
-    pub fn compute_hash_tree_helper(leaf: Leaf<T>, hasher: &mut DefaultHasher) {
+    fn compute_hash_tree_helper(leaf: Leaf<T>, hasher: &mut DefaultHasher) {
         leaf.value.hash(hasher);
         for leaf in leaf.leaves {
             Self::compute_hash_tree_helper(leaf, hasher);
