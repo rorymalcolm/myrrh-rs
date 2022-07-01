@@ -17,10 +17,10 @@ struct Args {
 
 #[derive(Debug)]
 struct TypeScriptTypeNode {
-    type_name: String,
-    optional: bool,
     nullable: bool,
+    optional: bool,
     sub_items: Option<HashMap<String, TypeScriptTypeNode>>,
+    type_name: String,
 }
 
 impl TypeScriptTypeNode {
@@ -75,11 +75,11 @@ fn main() -> Result<()> {
 
     walk_value_tree(&v, &mut type_tree);
 
-    print_type_tree(&type_tree);
+    let output_string = build_type_tree_string(&type_tree);
+    println!("{}", output_string);
     Ok(())
 }
 
-#[tracing::instrument]
 fn walk_value_tree(v: &Value, type_tree: &mut HashMap<String, TypeScriptTypeNode>) {
     match v {
         Value::Object(o) => {
@@ -88,12 +88,6 @@ fn walk_value_tree(v: &Value, type_tree: &mut HashMap<String, TypeScriptTypeNode
                     type_tree.insert(
                         k.to_string(),
                         TypeScriptTypeNode::new(classify_value_type(v), false, false),
-                    );
-                    event!(
-                        Level::INFO,
-                        key = k,
-                        value = classify_value_type(v),
-                        "found value"
                     );
                 } else {
                     let mut sub_items = HashMap::<String, TypeScriptTypeNode>::new();
@@ -114,7 +108,6 @@ fn walk_value_tree(v: &Value, type_tree: &mut HashMap<String, TypeScriptTypeNode
                         "item".to_string(),
                         TypeScriptTypeNode::new(classify_value_type(v), false, false),
                     );
-                    event!(Level::INFO, value = classify_value_type(v), "found value");
                 } else {
                     walk_value_tree(v, &mut sub_items);
                 }
@@ -127,12 +120,10 @@ fn walk_value_tree(v: &Value, type_tree: &mut HashMap<String, TypeScriptTypeNode
                 nullable: false,
                 sub_items: None,
             };
-            event!(Level::INFO, "{}", classify_value_type(v));
         }
     }
 }
 
-#[tracing::instrument]
 fn classify_value_type(v: &Value) -> String {
     match v {
         Value::Bool(_) => "boolean".to_string(),
@@ -153,13 +144,27 @@ fn is_value_type(v: &Value) -> bool {
     }
 }
 
-fn print_type_tree(type_tree: &HashMap<String, TypeScriptTypeNode>) {
-    println!("type DefaultType = {{");
-    print_type_tree_helper(type_tree, 1);
-    println!("}}");
+fn build_type_tree_string(type_tree: &HashMap<String, TypeScriptTypeNode>) -> String {
+    let mut output_string = String::new();
+    let parsing_span = span!(Level::INFO, "parsing");
+    let _enter = parsing_span.enter();
+    event!(Level::INFO, "beginning parsing");
+    output_string.push_str("type DefaultType = {\n");
+    build_type_tree_helper(&mut output_string, type_tree, 1);
+    output_string.push_str("};\n");
+    event!(
+        Level::INFO,
+        output_string = output_string,
+        "parsing finished"
+    );
+    output_string
 }
 
-fn print_type_tree_helper(type_tree: &HashMap<String, TypeScriptTypeNode>, indent: usize) {
+fn build_type_tree_helper(
+    output_string: &mut std::string::String,
+    type_tree: &HashMap<String, TypeScriptTypeNode>,
+    indent: usize,
+) -> String {
     let mut indent_str = String::new();
     for _ in 0..indent {
         indent_str.push_str("  ");
@@ -167,29 +172,35 @@ fn print_type_tree_helper(type_tree: &HashMap<String, TypeScriptTypeNode>, inden
     for (k, v) in type_tree {
         if v.type_name != "object" && v.type_name != "array" {
             if identifier_needs_wrapped(k) {
-                println!(
-                    "{}\"{}\": {};",
+                output_string.push_str(&format!(
+                    "{}\"{}\": {};\n",
                     indent_str,
                     k.to_string(),
                     v.to_type_string()
-                );
+                ));
             } else {
-                println!("{}{}: {};", indent_str, k.to_string(), v.to_type_string());
+                output_string.push_str(&format!(
+                    "{}\"{}\": {};\n",
+                    indent_str,
+                    k.to_string(),
+                    v.to_type_string()
+                ));
             }
         }
         match &v.sub_items {
             Some(sub_items) => {
                 if identifier_needs_wrapped(k) {
-                    println!("{}\"{}\": {{", indent_str, k.to_string());
+                    output_string.push_str(&format!("{}  \"{}\": {{\n", indent_str, k.to_string()));
                 } else {
-                    println!("{}{}: {{", indent_str, k.to_string());
+                    output_string.push_str(&format!("{} {}: {{", indent_str, k.to_string()));
                 }
-                print_type_tree_helper(&sub_items, indent + 1);
-                println!("{}}};", indent_str);
+                build_type_tree_helper(output_string, &sub_items, indent + 1);
+                output_string.push_str(&format!("{}}}\n", indent_str));
             }
             None => (),
         }
     }
+    output_string.to_string()
 }
 
 fn identifier_needs_wrapped(type_name: &str) -> bool {
