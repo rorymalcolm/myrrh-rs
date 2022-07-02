@@ -80,9 +80,6 @@ fn main() -> Result<()> {
     let output_string = build_type_tree_string(&type_tree);
     println!("{}", output_string);
 
-    let merkle_tree = merkle_tree::MerkleTree::new("root".to_string());
-
-    println!("{:?}", merkle_tree);
     Ok(())
 }
 
