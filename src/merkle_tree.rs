@@ -24,10 +24,6 @@ impl HashmapWrapper {
         HashmapWrapper(Mutex::new(HashMap::new()))
     }
 
-    pub fn map_mut<R>(&mut self, id: u64, f: impl FnOnce(&mut u64) -> R) -> Option<R> {
-        self.0.lock().unwrap().get_mut(&id).map(f)
-    }
-
     pub fn contains_key(&self, id: u64) -> bool {
         self.0.lock().unwrap().contains_key(&id)
     }
@@ -157,5 +153,17 @@ mod tests {
             .unwrap()
             .add_leaf("right".to_string(), &Arc::new(Mutex::new(merkle_tree)));
         assert_eq!(merkle_tree.lookup_up_table.len(), 2)
+    }
+
+    #[test]
+    fn hash_changes_on_insert(){
+        let mut merkle_tree_init = MerkleTree::new();
+        let merkle_tree = merkle_tree_init.with_root("root".to_string());
+        let root: Arc<Mutex<Leaf<std::string::String>>> = merkle_tree.get_root();
+        let hash = root.try_lock().unwrap().hash.clone();
+        root.try_lock()
+            .unwrap()
+            .add_leaf("right".to_string(), &Arc::new(Mutex::new(merkle_tree)));
+        assert_ne!(hash, merkle_tree.get_root().lock().unwrap().hash)
     }
 }
