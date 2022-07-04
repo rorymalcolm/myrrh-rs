@@ -116,13 +116,16 @@ impl TypeScriptNode {
                         TypeScriptNode::to_type_string_helper(a, true, indent_size + 1);
                     array_types_seen.insert(array_type);
                 }
-                if array_types_seen.len() == 1 {
+                if array_types_seen.len() == 0 {
+                    type_string.push_str("any");
+                } else if array_types_seen.len() == 1 {
                     type_string.push_str(&format!("{}", array_types_seen.iter().next().unwrap()));
                 } else {
                     type_string.push_str(&format!(
                         "({})",
                         &array_types_seen
                             .iter()
+                            .sorted()
                             .join(" | ")
                             .replace("\n", "")
                             .replace(" ", "")
@@ -308,6 +311,57 @@ mod tests {
         assert_eq!(
             output_string,
             "type DefaultType = {\n    \"woah lol\": {\n      \"test\": string[];\n      \"test2\": (string|{\"test\":string;})[];\n    };\n};\n".to_string()
+        );
+    }
+
+    #[test]
+    fn parses_number() {
+        let val_tree = serde_json::from_str(r#"1"#).unwrap();
+        let result = walk_value_tree(&val_tree, None).unwrap();
+        let output_string = TypeScriptNode::to_type_string(result, false);
+        assert_eq!(output_string, "type DefaultType = number;\n");
+    }
+
+    #[test]
+    fn parses_bool() {
+        let val_tree = serde_json::from_str(r#"true"#).unwrap();
+        let result = walk_value_tree(&val_tree, None).unwrap();
+        let output_string = TypeScriptNode::to_type_string(result, false);
+        assert_eq!(output_string, "type DefaultType = boolean;\n");
+    }
+
+    #[test]
+    fn parses_null() {
+        let val_tree = serde_json::from_str(r#"null"#).unwrap();
+        let result = walk_value_tree(&val_tree, None).unwrap();
+        let output_string = TypeScriptNode::to_type_string(result, false);
+        assert_eq!(output_string, "type DefaultType = null;\n");
+    }
+
+    #[test]
+    fn parses_object() {
+        let val_tree = serde_json::from_str(r#"{}"#).unwrap();
+        let result = walk_value_tree(&val_tree, None).unwrap();
+        let output_string = TypeScriptNode::to_type_string(result, false);
+        assert_eq!(output_string, "type DefaultType = {\n};\n");
+    }
+
+    #[test]
+    fn parses_array() {
+        let val_tree = serde_json::from_str(r#"[]"#).unwrap();
+        let result = walk_value_tree(&val_tree, None).unwrap();
+        let output_string = TypeScriptNode::to_type_string(result, false);
+        assert_eq!(output_string, "type DefaultType = any[];\n");
+    }
+
+    #[test]
+    fn parses_object_with_array() {
+        let val_tree = serde_json::from_str(r#"{ "test": [] }"#).unwrap();
+        let result = walk_value_tree(&val_tree, None).unwrap();
+        let output_string = TypeScriptNode::to_type_string(result, false);
+        assert_eq!(
+            output_string,
+            "type DefaultType = {\n    \"test\": any[];\n};\n"
         );
     }
 }
