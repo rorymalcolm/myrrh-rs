@@ -95,7 +95,8 @@ Diagram:
 │Type: String   │    │Type: String   │
 │Name: test     │    │Name: test     │
 │Hash: test     │    │Hash: test     │
-└───────────────┘    └───────────────┘```
+└───────────────┘    └───────────────┘
+```
 
 As a node is added at the root of the tree, the hash of each node with an upwards dependency on its value (including the root node) is recalculated and the node is added to the lookup table. As hashes are recomputed, the lookup table is also purged, with the old hash decremented and new hash added.
 
