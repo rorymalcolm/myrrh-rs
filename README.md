@@ -68,14 +68,14 @@ We'll build a n-ary Merkle tree which has nodes which have a hash which represen
 
 Diagram:
 
-```
+````
 ┌───────────────┐
 │Node           │
-├───────────────◄───────────────────────────────┐
+├───────────────◄────────────────────────────────┐
 │Type: String   │                                │
 │Name: test     │                                │
-│Hash: test     ◄────────┐                      │
-└───────▲───────┘        │                      │
+│Hash: test     ◄─────────┐                      │
+└───────▲───────┘         │                      │
         │                 │                      │
         │                 │                      │
         │                 │                      │
@@ -85,7 +85,7 @@ Diagram:
 │Type: String   │   │Type: String   │    │Type: String   │
 │Name: test     │   │Name: test     │    │Name: test     │
 │Hash: test     │   │Hash: test     │    │Hash: test     │
-└───────▲───▲─┘   └───────────────┘    └───────────────┘
+└───────▲─────▲─┘   └───────────────┘    └───────────────┘
         │     │
         │     └──────────────┐
         │                    │
@@ -95,11 +95,11 @@ Diagram:
 │Type: String   │    │Type: String   │
 │Name: test     │    │Name: test     │
 │Hash: test     │    │Hash: test     │
-└───────────────┘    └───────────────┘
-```
+└───────────────┘    └───────────────┘```
 
 As a node is added at the root of the tree, the hash of each node with an upwards dependency on its value (including the root node) is recalculated and the node is added to the lookup table. As hashes are recomputed, the lookup table is also purged, with the old hash decremented and new hash added.
 
 This structure means that as we are outputting the typescript type, we can check the hash against the lookup on each node, and if there is more than one node with the same hash and the type is not currently in the type output cache, we can generate a common type, adding it to a type cache.
 
 At the end of the output process, we can then output common nodes will share a common type, this approach allows us to do this without traversing the entire tree at every step in the type generation process, while a performance penalty is incurred during the parsing process.
+````
