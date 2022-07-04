@@ -71,15 +71,15 @@ Diagram:
 ```
 ┌─────────────────────┐
 │Node                 │
-├─────────────────────►──────────────────────────┐
-│Type: String         │                          │
-│Name: test           │                          │
-│Hash: 3child         ◄───┐                      │
-│      +2grandchildren│   │                      │
-│                     │   │                      │
-└───────▲─────────────┘   │                      │
-        │                 │                      │
-┌───────┴───────┐   ┌─────┴─────────┐    ┌───────┴───────┐
+├─────────────────────┘
+│Type: String         ◄────────────────────┐
+│Name: test           │                    │
+│Hash: 3child         ◄───┐                │
+│      +2grand        │   │                │
+│                     │   │                │
+└───────▲─────────────┘   │                │
+        │                 │                │
+┌───────┴───────┐   ┌─────┴─────────┐    ┌─┴─────────────┐
 │Node           │   │Node           │    │Node           │
 ├───────────────┤   ├───────────────┤    ├───────────────┤
 │Type: String   │   │Type: String   │    │Type: String   │
@@ -104,6 +104,9 @@ This structure means that as we are outputting the typescript type, we can check
 
 At the end of the output process, we can then output common nodes will share a common type, this approach allows us to do this without traversing the entire tree at every step in the type generation process, while a performance penalty is incurred during the parsing process.
 
+````
+
 ```
 
 ```
+````
