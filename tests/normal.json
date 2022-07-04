@@ -1,6 +1,4 @@
 {
-  "test": ["woah"],
-  "test2": ["woaher", 2],
   "woah lol": {
     "test": ["woah"],
     "test2": ["woaher", { "test": "example" }]

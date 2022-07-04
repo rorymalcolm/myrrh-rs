@@ -23,12 +23,6 @@ enum TypeScriptPrimativeType {
     Object,
     Array,
     Null,
-    Unknown,
-}
-
-#[derive(Debug)]
-struct TypeScriptTypeTree {
-    root: TypeScriptNode,
 }
 
 #[derive(Debug)]
@@ -42,35 +36,20 @@ struct TypeScriptNode {
     type_signature: TypeScriptPrimativeType,
 }
 
-impl TypeScriptTypeTree {
-    fn new() -> TypeScriptTypeTree {
-        TypeScriptTypeTree {
-            root: TypeScriptNode {
-                name: None,
-                nullable: false,
-                optional: false,
-                is_array: false,
-                root_node: true,
-                sub_items: Vec::new(),
-                type_signature: TypeScriptPrimativeType::Unknown,
-            },
-        }
-    }
-}
-
 impl TypeScriptNode {
     fn new(
         type_name: TypeScriptPrimativeType,
         optional: bool,
         nullable: bool,
         is_array: bool,
+        root_node: bool,
     ) -> Self {
         TypeScriptNode {
             name: None,
             nullable,
             optional,
             is_array,
-            root_node: false,
+            root_node,
             sub_items: Vec::new(),
             type_signature: type_name,
         }
@@ -88,9 +67,8 @@ impl TypeScriptNode {
 
     fn to_type_string(node: TypeScriptNode, array_node: bool) -> String {
         let mut type_string = String::new();
-        type_string.push_str("type DefaultType = {\n");
+        type_string.push_str("type DefaultType = ");
         type_string.push_str(&Self::to_type_string_helper(node, array_node, 1));
-        type_string.push_str("};\n");
         type_string
     }
 
@@ -101,9 +79,9 @@ impl TypeScriptNode {
     ) -> String {
         let mut type_string = String::new();
         let mut indent_string = String::new();
-        if !parent_array_node {
+        if !node.root_node && !parent_array_node {
             for _ in 0..indent_size {
-                indent_string.push_str("    ");
+                indent_string.push_str("  ");
             }
             type_string.push_str(&indent_string)
         }
@@ -121,10 +99,13 @@ impl TypeScriptNode {
             TypeScriptPrimativeType::Object => {
                 let mut object_type_string = String::new();
                 for o in node.sub_items {
+                    println!("name:{:?}, type:{:?}", o.name, o.type_signature);
+                    object_type_string.push_str(&format!("{{\n"));
                     object_type_string.push_str(&format!(
                         "{}",
                         TypeScriptNode::to_type_string_helper(o, false, indent_size + 1)
                     ));
+                    object_type_string.push_str(&format!("{}}}\n", indent_string));
                 }
                 type_string.push_str(&object_type_string.clone())
             }
@@ -138,11 +119,17 @@ impl TypeScriptNode {
                 if array_types_seen.len() == 1 {
                     type_string.push_str(&format!("{}", array_types_seen.iter().next().unwrap()));
                 } else {
-                    type_string.push_str(&format!("({})", &array_types_seen.iter().join(" | ")));
+                    type_string.push_str(&format!(
+                        "({})",
+                        &array_types_seen
+                            .iter()
+                            .join(" | ")
+                            .replace("\n", "")
+                            .replace(" ", "")
+                    ));
                 }
                 type_string.push_str("[]");
             }
-            TypeScriptPrimativeType::Unknown => type_string.push_str("unknown"),
         }
         if node.optional {
             type_string.push_str("?");
@@ -157,61 +144,102 @@ impl TypeScriptNode {
     }
 }
 
-fn walk_value_tree(
+fn walk_value_tree(v: &Value, key_name: Option<String>) -> Result<TypeScriptNode> {
+    walk_value_tree_helper(v, key_name, true)
+}
+
+fn walk_value_tree_helper(
     v: &Value,
-    type_tree: &mut TypeScriptNode,
     key_name: Option<String>,
+    root_node: bool,
 ) -> Result<TypeScriptNode> {
     match v {
         Value::String(_s) => {
-            let mut node =
-                TypeScriptNode::new(TypeScriptPrimativeType::String, false, false, false);
+            let mut node = TypeScriptNode::new(
+                TypeScriptPrimativeType::String,
+                false,
+                false,
+                false,
+                root_node,
+            );
             if let Some(name) = key_name {
                 node = node.with_name(name);
             }
             Ok(node)
         }
         Value::Number(_n) => {
-            let mut node =
-                TypeScriptNode::new(TypeScriptPrimativeType::Number, false, false, false);
+            let mut node = TypeScriptNode::new(
+                TypeScriptPrimativeType::Number,
+                false,
+                false,
+                false,
+                root_node,
+            );
             if let Some(name) = key_name {
                 node = node.with_name(name);
             }
             Ok(node)
         }
         Value::Bool(_b) => {
-            let mut node =
-                TypeScriptNode::new(TypeScriptPrimativeType::Boolean, false, false, false);
+            let mut node = TypeScriptNode::new(
+                TypeScriptPrimativeType::Boolean,
+                false,
+                false,
+                false,
+                root_node,
+            );
             if let Some(name) = key_name {
                 node = node.with_name(name);
             }
             Ok(node)
         }
         Value::Null => {
-            let mut node = TypeScriptNode::new(TypeScriptPrimativeType::Null, false, false, false);
+            let mut node = TypeScriptNode::new(
+                TypeScriptPrimativeType::Null,
+                false,
+                false,
+                false,
+                root_node,
+            );
             if let Some(name) = key_name {
                 node = node.with_name(name);
             }
             Ok(node)
         }
         Value::Array(a) => {
-            let mut node = TypeScriptNode::new(TypeScriptPrimativeType::Array, false, false, true);
+            let mut node = TypeScriptNode::new(
+                TypeScriptPrimativeType::Array,
+                false,
+                false,
+                true,
+                root_node,
+            );
             let mut sub_items = Vec::new();
             for v in a {
-                sub_items.push(walk_value_tree(v, type_tree, None)?);
+                sub_items.push(walk_value_tree_helper(v, None, false)?);
             }
             if let Some(name) = key_name {
                 node = node.with_name(name);
             }
+
             node = node.with_sub_items(sub_items);
             Ok(node)
         }
         Value::Object(o) => {
-            let mut node =
-                TypeScriptNode::new(TypeScriptPrimativeType::Object, false, false, false);
+            let mut node = TypeScriptNode::new(
+                TypeScriptPrimativeType::Object,
+                false,
+                false,
+                false,
+                root_node,
+            );
             let mut sub_items = Vec::new();
             for (k, v) in o {
-                sub_items.push(walk_value_tree(v, type_tree, Option::Some(k.to_string()))?);
+                sub_items.push(walk_value_tree_helper(
+                    v,
+                    Option::Some(k.to_string()),
+                    false,
+                )?);
             }
             if let Some(name) = key_name {
                 node = node.with_name(name);
@@ -241,14 +269,11 @@ fn main() -> Result<()> {
         "input file content"
     );
 
-    let mut type_tree = TypeScriptTypeTree::new();
-
     let v: Value = serde_json::from_str(input_file_content.as_str())
         .with_context(|| format!("could not parse json"))?;
 
-    let result = walk_value_tree(&v, &mut type_tree.root, None).unwrap();
+    let result = walk_value_tree(&v, None).unwrap();
     let result_root_is_array = result.is_array.clone();
-    println!("{:?}", result);
     let output_string = TypeScriptNode::to_type_string(result, result_root_is_array);
     println!("{}", output_string);
     Ok(())
@@ -256,14 +281,40 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{walk_value_tree, TypeScriptNode, TypeScriptTypeTree};
+    use crate::{walk_value_tree, TypeScriptNode};
 
     #[test]
     fn parses_string() {
         let val_tree = serde_json::from_str(r#""hello""#).unwrap();
-        let mut type_tree = TypeScriptTypeTree::new();
-        let result = walk_value_tree(&val_tree, &mut type_tree.root, None).unwrap();
+        let result = walk_value_tree(&val_tree, None).unwrap();
         let output_string = TypeScriptNode::to_type_string(result, false);
-        assert_eq!(output_string, "string;\n");
+        assert_eq!(output_string, "type DefaultType = string;\n");
+    }
+
+    #[test]
+    fn semi_complex_arrays() {
+        let val_tree = serde_json::from_str(
+            r#"{
+            "woah lol": {
+              "test": ["woah"],
+              "test2": ["woaher", { "test": "example" }]
+            }
+          }
+          "#,
+        )
+        .unwrap();
+        let result = walk_value_tree(&val_tree, None).unwrap();
+        let output_string = TypeScriptNode::to_type_string(result, false);
+        assert_eq!(
+            output_string,
+            r#"type DefaultType = {
+            "woah lol": {
+              test: string[];
+            };
+          
+            test2: (string | { test: string })[];
+          };
+        "#
+        );
     }
 }
