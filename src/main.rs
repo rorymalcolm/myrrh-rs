@@ -364,4 +364,43 @@ mod tests {
             "type DefaultType = {\n    \"test\": any[];\n};\n"
         );
     }
+
+    #[test]
+    fn parses_object_with_object() {
+        let val_tree = serde_json::from_str(r#"{ "test": { "test": "test" } }"#).unwrap();
+        let result = walk_value_tree(&val_tree, None).unwrap();
+        let output_string = TypeScriptNode::to_type_string(result, false);
+        assert_eq!(
+            output_string,
+            "type DefaultType = {\n    \"test\": {\n      \"test\": string;\n    };\n};\n"
+        );
+    }
+
+    #[test]
+    fn parses_object_with_array_of_objects() {
+        let val_tree = serde_json::from_str(
+            r#"{ "test": [{ "test": "test" }, { "test": "test" }] }"#,
+        )
+        .unwrap();
+        let result = walk_value_tree(&val_tree, None).unwrap();
+        let output_string = TypeScriptNode::to_type_string(result, false);
+        assert_eq!(
+            output_string,
+            "type DefaultType = {\n    \"test\": {\n        \"test\": string;\n}[];\n};\n"
+        );
+    }
+
+    #[test]
+    fn parses_object_with_array_of_arrays() {
+        let val_tree = serde_json::from_str(
+            r#"{ "test": [[], []] }"#,
+        )
+        .unwrap();
+        let result = walk_value_tree(&val_tree, None).unwrap();
+        let output_string = TypeScriptNode::to_type_string(result, false);
+        assert_eq!(
+            output_string,
+            "type DefaultType = {\n    \"test\": any[][];\n};\n"
+        );
+    }
 }
