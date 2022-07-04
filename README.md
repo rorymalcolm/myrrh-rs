@@ -69,22 +69,22 @@ We'll build a n-ary Merkle tree which has nodes which have a hash which represen
 Diagram:
 
 ````
-┌───────────────┐
-│Node           │
-├───────────────◄────────────────────────────────┐
-│Type: String   │                                │
-│Name: test     │                                │
-│Hash: test     ◄─────────┐                      │
-└───────▲───────┘         │                      │
-        │                 │                      │
-        │                 │                      │
+┌─────────────────────┐
+│Node                 │
+├─────────────────────►──────────────────────────┐
+│Type: String         │                          │
+│Name: test           │                          │
+│Hash: 3child         ◄───┐                      │
+│      +2grandchildren│   │                      │
+│                     │   │                      │
+└───────▲─────────────┘   │                      │
         │                 │                      │
 ┌───────┴───────┐   ┌─────┴─────────┐    ┌───────┴───────┐
 │Node           │   │Node           │    │Node           │
 ├───────────────┤   ├───────────────┤    ├───────────────┤
 │Type: String   │   │Type: String   │    │Type: String   │
 │Name: test     │   │Name: test     │    │Name: test     │
-│Hash: test     │   │Hash: test     │    │Hash: test     │
+│Hash: 2child   │   │Hash: test     │    │Hash: test     │
 └───────▲─────▲─┘   └───────────────┘    └───────────────┘
         │     │
         │     └──────────────┐
