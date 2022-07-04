@@ -98,15 +98,15 @@ impl TypeScriptNode {
             TypeScriptPrimativeType::Null => type_string.push_str("null"),
             TypeScriptPrimativeType::Object => {
                 let mut object_type_string = String::new();
+                object_type_string.push_str(&format!("{{\n"));
                 for o in node.sub_items {
                     println!("name:{:?}, type:{:?}", o.name, o.type_signature);
-                    object_type_string.push_str(&format!("{{\n"));
                     object_type_string.push_str(&format!(
                         "{}",
                         TypeScriptNode::to_type_string_helper(o, false, indent_size + 1)
                     ));
-                    object_type_string.push_str(&format!("{}}}\n", indent_string));
                 }
+                object_type_string.push_str(&format!("{}}}", indent_string));
                 type_string.push_str(&object_type_string.clone())
             }
             TypeScriptPrimativeType::Array => {
@@ -307,14 +307,7 @@ mod tests {
         let output_string = TypeScriptNode::to_type_string(result, false);
         assert_eq!(
             output_string,
-            r#"type DefaultType = {
-            "woah lol": {
-              test: string[];
-            };
-          
-            test2: (string | { test: string })[];
-          };
-        "#
+            "type DefaultType = {\n    \"woah lol\": {\n      \"test\": string[];\n      \"test2\": (string|{\"test\":string;})[];\n    };\n};\n".to_string()
         );
     }
 }

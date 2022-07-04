@@ -1,6 +1,0 @@
-{
-  "woah lol": {
-    "test": ["woah"],
-    "test2": ["woaher", { "test": "example" }]
-  }
-}
