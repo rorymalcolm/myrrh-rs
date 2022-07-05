@@ -94,10 +94,10 @@ impl TypeScriptNode {
 
     fn calculate_hash(&mut self) -> u64 {
         let mut hasher = DefaultHasher::new();
-        hasher.write(self.type_signature.as_bytes());
-        hasher.write(self.name.as_ref().unwrap_or(&"".to_string()).as_bytes());
         let mut hash_seen_before = HashSet::<u64>::new();
         for sub_item in &mut self.sub_items {
+            hasher.write(sub_item.type_signature.as_bytes());
+            hasher.write(sub_item.name.as_ref().unwrap_or(&"".to_string()).as_bytes());    
             let sub_node_hash = &sub_item.calculate_hash();
             if hash_seen_before.contains(sub_node_hash) {
                 continue;
@@ -584,6 +584,31 @@ mod tests {
         assert_eq!(
             output_string,
             "type DefaultType = {\n  test: any[][];\n };\n"
+        );
+    }
+
+    #[test]
+    fn readme_example() {
+        let val_tree = serde_json::from_str(
+            r#"{
+                "paymentOne": {
+                  "amount": 1337,
+                  "status": "paid"
+                },
+                "paymentTwo": {
+                  "amount": 1337,
+                  "status": "paid"
+                }
+              }              
+          "#,
+        )
+        .unwrap();
+        let mut result = walk_value_tree(&val_tree, None).unwrap();
+        result.calculate_hash();
+        let output_string = TypeScriptNode::to_type_string(result, false);
+        assert_eq!(
+            output_string,
+            "type DefaultType = {\n  paymentOne: DefaultType_0;\n   paymentTwo: DefaultType_0;\n };\n\ntype DefaultType_0 = {\n     amount: number;\n     status: string;\n    }\n".to_string()
         );
     }
 }
