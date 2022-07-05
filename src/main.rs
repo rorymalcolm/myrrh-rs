@@ -566,9 +566,9 @@ mod tests {
         let val_tree =
             serde_json::from_str(r#"{ "test": [{ "test": "test" }, { "test": "test" }] }"#)
                 .unwrap();
-                let mut result = walk_value_tree(&val_tree, None).unwrap();
-                result.calculate_hash();
-                let output_string = TypeScriptNode::to_type_string(result, false);
+        let mut result = walk_value_tree(&val_tree, None).unwrap();
+        result.calculate_hash();
+        let output_string = TypeScriptNode::to_type_string(result, false);
         assert_eq!(
             output_string,
             "type DefaultType = {\n  test: DefaultType_0[];\n };\n\ntype DefaultType_0 = { test: string; }\n"
@@ -586,5 +586,4 @@ mod tests {
             "type DefaultType = {\n  test: any[][];\n };\n"
         );
     }
-
 }
