@@ -2,6 +2,37 @@
 
 Takes thorny JSON blobs and coverts them into a corresponding TypeScript type
 
+Myrrh will squash common types so that types which are common have a single, shared type definition.
+
+For example, take this JSON:
+
+```json
+{
+  "payments": [
+    {
+      "amount": 1337,
+      "currency": "USD"
+    },
+    {
+      "amount": 420,
+      "currency": "GBP"
+    }
+  ]
+}
+```
+
+Myrr will generate the following TypeScript type definition:
+
+```typescript
+type DefaultType = {
+  payments: DefaultType_0[];
+};
+
+type DefaultType_0 = { amount: number; currency: string };
+```
+
+With a common type which can be renamed by the user, this can be disabled using the `--squash false` flag.
+
 ## Usage
 
 Run `cargo run --input ${path/to/input.json}` to receive the results to stdout.
