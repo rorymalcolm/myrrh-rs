@@ -100,7 +100,6 @@ impl TypeScriptNode {
                 let mut object_type_string = String::new();
                 object_type_string.push_str(&format!("{{\n"));
                 for o in node.sub_items {
-                    println!("name:{:?}, type:{:?}", o.name, o.type_signature);
                     object_type_string.push_str(&format!(
                         "{}",
                         TypeScriptNode::to_type_string_helper(o, false, indent_size + 1)
@@ -378,10 +377,9 @@ mod tests {
 
     #[test]
     fn parses_object_with_array_of_objects() {
-        let val_tree = serde_json::from_str(
-            r#"{ "test": [{ "test": "test" }, { "test": "test" }] }"#,
-        )
-        .unwrap();
+        let val_tree =
+            serde_json::from_str(r#"{ "test": [{ "test": "test" }, { "test": "test" }] }"#)
+                .unwrap();
         let result = walk_value_tree(&val_tree, None).unwrap();
         let output_string = TypeScriptNode::to_type_string(result, false);
         assert_eq!(
@@ -392,10 +390,7 @@ mod tests {
 
     #[test]
     fn parses_object_with_array_of_arrays() {
-        let val_tree = serde_json::from_str(
-            r#"{ "test": [[], []] }"#,
-        )
-        .unwrap();
+        let val_tree = serde_json::from_str(r#"{ "test": [[], []] }"#).unwrap();
         let result = walk_value_tree(&val_tree, None).unwrap();
         let output_string = TypeScriptNode::to_type_string(result, false);
         assert_eq!(
