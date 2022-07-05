@@ -251,7 +251,6 @@ fn walk_value_tree_helper(
         }
     }
 }
-
 fn main() -> Result<()> {
     let subscrber = FmtSubscriber::new();
     tracing::subscriber::set_global_default(subscrber).expect("setting tracing default failed");
@@ -277,7 +276,21 @@ fn main() -> Result<()> {
     let result = walk_value_tree(&v, None).unwrap();
     let result_root_is_array = result.is_array.clone();
     let output_string = TypeScriptNode::to_type_string(result, result_root_is_array);
-    println!("{}", output_string);
+    if args.output_file.is_none() {
+        event!(
+            Level::INFO,
+            output_string = output_string,
+            "generated output"
+        );
+    } else {
+        event!(
+            Level::INFO,
+            output_file = args.output_file.clone().unwrap(),
+            "writing output to file"
+        );
+        std::fs::write(args.output_file.unwrap(), output_string)
+            .with_context(|| format!("could not write to file"))?;
+    }
     Ok(())
 }
 
