@@ -21,7 +21,7 @@ For example, take this JSON:
 }
 ```
 
-Myrr will generate the following TypeScript type definition:
+Myrrh will generate the following TypeScript type definition:
 
 ```typescript
 type DefaultType = {
