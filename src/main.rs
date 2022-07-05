@@ -68,8 +68,36 @@ impl TypeScriptNode {
     fn to_type_string(node: TypeScriptNode, array_node: bool) -> String {
         let mut type_string = String::new();
         type_string.push_str("type DefaultType = ");
-        type_string.push_str(&Self::to_type_string_helper(node, array_node, 1));
+        type_string.push_str(&Self::to_type_string_helper(node, array_node, 0));
         type_string
+    }
+
+    fn newline_if_parent_not_array_node(array_node: bool) -> String {
+        if !array_node {
+            String::from("\n")
+        } else {
+            String::new()
+        }
+    }
+
+    fn semicolon_if_parent_array_node(array_node: bool) -> String {
+        if array_node {
+            String::from(";")
+        } else {
+            String::new()
+        }
+    }
+
+    fn space_if_parent_not_root_node(root_node: bool) -> String {
+        if !root_node {
+            String::from(" ")
+        } else {
+            String::new()
+        }
+    }
+
+    fn string_is_alphanumeric(string: &str) -> bool {
+        string.chars().all(|c| c.is_alphanumeric() || c == '_')
     }
 
     fn to_type_string_helper(
@@ -85,11 +113,15 @@ impl TypeScriptNode {
             }
             type_string.push_str(&indent_string)
         }
-        if !parent_array_node {
-            match node.name {
-                Some(name) => type_string.push_str(&format!("\"{}\": ", name)),
-                None => (),
+        match node.name {
+            Some(name) => {
+                if Self::string_is_alphanumeric(&name.clone()) {
+                    type_string.push_str(&format!("{}: ", name));
+                } else {
+                    type_string.push_str(&format!("\"{}\": ", name))
+                }
             }
+            None => (),
         }
         match node.type_signature {
             TypeScriptPrimativeType::Boolean => type_string.push_str("boolean"),
@@ -98,14 +130,28 @@ impl TypeScriptNode {
             TypeScriptPrimativeType::Null => type_string.push_str("null"),
             TypeScriptPrimativeType::Object => {
                 let mut object_type_string = String::new();
-                object_type_string.push_str(&format!("{{\n"));
+                object_type_string.push_str(&format!(
+                    "{{{}{}",
+                    &Self::newline_if_parent_not_array_node(parent_array_node),
+                    &Self::space_if_parent_not_root_node(node.root_node)
+                ));
                 for o in node.sub_items {
                     object_type_string.push_str(&format!(
-                        "{}",
-                        TypeScriptNode::to_type_string_helper(o, false, indent_size + 1)
+                        "{}{}{}",
+                        TypeScriptNode::to_type_string_helper(
+                            o,
+                            parent_array_node,
+                            indent_size + 1,
+                        ),
+                        &Self::space_if_parent_not_root_node(parent_array_node),
+                        &Self::semicolon_if_parent_array_node(parent_array_node)
                     ));
                 }
-                object_type_string.push_str(&format!("{}}}", indent_string));
+                object_type_string.push_str(&format!(
+                    "{}{}}}",
+                    &Self::space_if_parent_not_root_node(node.root_node),
+                    indent_string
+                ));
                 type_string.push_str(&object_type_string.clone())
             }
             TypeScriptPrimativeType::Array => {
@@ -122,12 +168,7 @@ impl TypeScriptNode {
                 } else {
                     type_string.push_str(&format!(
                         "({})",
-                        &array_types_seen
-                            .iter()
-                            .sorted()
-                            .join(" | ")
-                            .replace("\n", "")
-                            .replace(" ", "")
+                        &array_types_seen.iter().sorted().join(" | ")
                     ));
                 }
                 type_string.push_str("[]");
@@ -322,7 +363,7 @@ mod tests {
         let output_string = TypeScriptNode::to_type_string(result, false);
         assert_eq!(
             output_string,
-            "type DefaultType = {\n    \"woah lol\": {\n      \"test\": string[];\n      \"test2\": (string|{\"test\":string;})[];\n    };\n};\n".to_string()
+            "type DefaultType = {\n  \"woah lol\": {\n     test: string[];\n     test2: (string | { test: string; })[];\n    };\n };\n".to_string()
         );
     }
 
@@ -373,7 +414,7 @@ mod tests {
         let output_string = TypeScriptNode::to_type_string(result, false);
         assert_eq!(
             output_string,
-            "type DefaultType = {\n    \"test\": any[];\n};\n"
+            "type DefaultType = {\n  test: any[];\n };\n"
         );
     }
 
@@ -384,7 +425,7 @@ mod tests {
         let output_string = TypeScriptNode::to_type_string(result, false);
         assert_eq!(
             output_string,
-            "type DefaultType = {\n    \"test\": {\n      \"test\": string;\n    };\n};\n"
+            "type DefaultType = {\n  test: {\n     test: string;\n    };\n };\n"
         );
     }
 
@@ -397,7 +438,7 @@ mod tests {
         let output_string = TypeScriptNode::to_type_string(result, false);
         assert_eq!(
             output_string,
-            "type DefaultType = {\n    \"test\": {\n        \"test\": string;\n}[];\n};\n"
+            "type DefaultType = {\n  test: { test: string; }[];\n };\n"
         );
     }
 
@@ -408,7 +449,7 @@ mod tests {
         let output_string = TypeScriptNode::to_type_string(result, false);
         assert_eq!(
             output_string,
-            "type DefaultType = {\n    \"test\": any[][];\n};\n"
+            "type DefaultType = {\n  test: any[][];\n };\n"
         );
     }
 }
