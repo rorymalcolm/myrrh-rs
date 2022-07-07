@@ -263,15 +263,14 @@ impl TypeScriptNode {
                     );
                     array_types_seen.insert(array_type);
                 }
-                match array_types_seen.len() {
-                    0 => type_string.push_str("any"),
-                    1 => type_string
-                        .push_str(&format!("{}", array_types_seen.iter().next().unwrap())),
-                    _ => type_string.push_str(&format!(
-                        "({})",
-                        &array_types_seen.iter().sorted().join(" | ")
-                    )),
+                let to_append = match array_types_seen.len() {
+                    0 => "any".to_string(),
+                    1 => format!("{}", array_types_seen.into_iter().next().unwrap()),
+                    _ => {
+                        format!("({})", &array_types_seen.iter().sorted().join(" | "))
+                    }
                 };
+                type_string.push_str(&to_append);
                 type_string.push_str("[]");
             }
         }
