@@ -97,7 +97,7 @@ impl TypeScriptNode {
         let mut hash_seen_before = HashSet::<u64>::new();
         for sub_item in &mut self.sub_items {
             hasher.write(sub_item.type_signature.as_bytes());
-            hasher.write(sub_item.name.as_ref().unwrap_or(&"".to_string()).as_bytes());    
+            hasher.write(sub_item.name.as_ref().unwrap_or(&"".to_string()).as_bytes());
             let sub_node_hash = &sub_item.calculate_hash();
             if hash_seen_before.contains(sub_node_hash) {
                 continue;
@@ -263,16 +263,15 @@ impl TypeScriptNode {
                     );
                     array_types_seen.insert(array_type);
                 }
-                if array_types_seen.len() == 0 {
-                    type_string.push_str("any");
-                } else if array_types_seen.len() == 1 {
-                    type_string.push_str(&format!("{}", array_types_seen.iter().next().unwrap()));
-                } else {
-                    type_string.push_str(&format!(
+                match array_types_seen.len() {
+                    0 => type_string.push_str("any"),
+                    1 => type_string
+                        .push_str(&format!("{}", array_types_seen.iter().next().unwrap())),
+                    _ => type_string.push_str(&format!(
                         "({})",
                         &array_types_seen.iter().sorted().join(" | ")
-                    ));
-                }
+                    )),
+                };
                 type_string.push_str("[]");
             }
         }
