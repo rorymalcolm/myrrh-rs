@@ -6,7 +6,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::TypeOutputCacheEntry;
+use crate::type_output_cache_entry::TypeOutputCacheEntry;
 
 #[derive(Debug)]
 pub(crate) enum TypeScriptPrimativeType {

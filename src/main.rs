@@ -1,3 +1,4 @@
+mod type_output_cache_entry;
 pub mod typescript_node;
 
 pub(crate) use anyhow::{Context, Result};
@@ -23,16 +24,57 @@ struct Args {
     squash_common_types: Option<bool>,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-struct TypeOutputCacheEntry {
-    type_name: String,
-    output: String,
-}
+fn main() -> Result<()> {
+    let subscrber = FmtSubscriber::new();
+    tracing::subscriber::set_global_default(subscrber).expect("setting tracing default failed");
 
-impl TypeOutputCacheEntry {
-    fn new(type_name: String, output: String) -> Self {
-        Self { type_name, output }
+    let span = span!(Level::INFO, "parsing");
+
+    let _enter = span.enter();
+
+    let args = Args::parse();
+    let input_file_content = std::fs::read_to_string(&args.input_file)
+        .with_context(|| format!("could not read file `{}`", &args.input_file))?;
+
+    let input_length = String::len(&input_file_content);
+    event!(
+        Level::INFO,
+        input_file_content_length = input_length,
+        "input file content"
+    );
+
+    let v: Value = serde_json::from_str(input_file_content.as_str())
+        .with_context(|| format!("could not parse json"))?;
+    let mut result: TypeScriptNode = walk_value_tree(&v, None).unwrap();
+    let result_root_is_array = result.is_array().clone();
+    match args.squash_common_types {
+        Some(val) => {
+            if val {
+                result.calculate_hash();
+            }
+        }
+        None => {
+            result.calculate_hash();
+            ()
+        }
     }
+    let output_string = TypeScriptNode::to_type_string(result, result_root_is_array);
+    if args.output_file.is_none() {
+        event!(
+            Level::INFO,
+            output_string = output_string,
+            "generated output"
+        );
+    } else {
+        event!(
+            Level::INFO,
+            output_file = args.output_file.clone().unwrap(),
+            "writing output to file"
+        );
+        std::fs::write(args.output_file.unwrap(), output_string)
+            .with_context(|| format!("could not write to file"))?;
+    }
+    Ok(())
 }
 
 fn walk_value_tree(v: &Value, key_name: Option<String>) -> Result<TypeScriptNode> {
@@ -153,58 +195,6 @@ fn walk_value_tree_helper(
             Ok(node)
         }
     }
-}
-fn main() -> Result<()> {
-    let subscrber = FmtSubscriber::new();
-    tracing::subscriber::set_global_default(subscrber).expect("setting tracing default failed");
-
-    let span = span!(Level::INFO, "parsing");
-
-    let _enter = span.enter();
-
-    let args = Args::parse();
-    let input_file_content = std::fs::read_to_string(&args.input_file)
-        .with_context(|| format!("could not read file `{}`", &args.input_file))?;
-
-    let input_length = String::len(&input_file_content);
-    event!(
-        Level::INFO,
-        input_file_content_length = input_length,
-        "input file content"
-    );
-
-    let v: Value = serde_json::from_str(input_file_content.as_str())
-        .with_context(|| format!("could not parse json"))?;
-    let mut result: TypeScriptNode = walk_value_tree(&v, None).unwrap();
-    let result_root_is_array = result.is_array().clone();
-    match args.squash_common_types {
-        Some(val) => {
-            if val {
-                result.calculate_hash();
-            }
-        }
-        None => {
-            result.calculate_hash();
-            ()
-        }
-    }
-    let output_string = TypeScriptNode::to_type_string(result, result_root_is_array);
-    if args.output_file.is_none() {
-        event!(
-            Level::INFO,
-            output_string = output_string,
-            "generated output"
-        );
-    } else {
-        event!(
-            Level::INFO,
-            output_file = args.output_file.clone().unwrap(),
-            "writing output to file"
-        );
-        std::fs::write(args.output_file.unwrap(), output_string)
-            .with_context(|| format!("could not write to file"))?;
-    }
-    Ok(())
 }
 
 #[cfg(test)]
